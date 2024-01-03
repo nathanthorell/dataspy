@@ -1,0 +1,28 @@
+{
+  "servers": [
+    {
+      "Type": "postgres",
+      "Server": "localhost",
+      "Port": "5432",
+      "Database": "postgres",
+      "User": "postgres",
+      "Password": "YOUR_SECRET_PASSWORD_HERE"
+    },
+    {
+      "Type": "mysql",
+      "Server": "localhost",
+      "Port": "3306",
+      "Database": "mysql",
+      "User": "root",
+      "Password": "YOUR_SECRET_PASSWORD_HERE"
+    },
+    {
+      "Type": "mssql",
+      "Server": "localhost",
+      "Port": "1433",
+      "Database": "master",
+      "User": "sa",
+      "Password": "YOUR_SECRET_PASSWORD_HERE"
+    }
+  ]
+}

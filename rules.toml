@@ -1,0 +1,23 @@
+[[rules]]
+Name = "Get Postgres Version"
+Description = "Test Postgres"
+DbType = "postgres"
+Query = """
+SELECT version();
+"""
+
+[[rules]]
+Name = "Get mySql Version"
+Description = "Test MySQL"
+DbType = "mysql"
+Query = """
+SELECT version();
+"""
+
+[[rules]]
+Name = "Get SQL Server Version"
+Description = "Test MS SQL Server"
+DbType = "mssql"
+Query = """
+SELECT @@version;
+"""
