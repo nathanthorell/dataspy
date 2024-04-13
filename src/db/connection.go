@@ -1,4 +1,4 @@
-package main
+package db
 
 type Connection struct {
 	Type     string `json:"Type"`
