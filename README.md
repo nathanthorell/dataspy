@@ -10,7 +10,7 @@ Currently supports PostgreSQL, SQL Server, and mySql.
 
 ## Build and Execute
 
-- `cd ./src && go build -o ../build/dataspy ./. && cd ..`
+- `go build -o ./build/dataspy ./.`
 - `./build/dataspy`
 
 ## Docker
