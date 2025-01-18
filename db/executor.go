@@ -3,49 +3,38 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"log"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/microsoft/go-mssqldb"
+	"github.com/nathanthorell/dataspy/config"
 )
 
-func ExecuteQuery(conn Connection, query string) {
-	var connStr string
-	switch conn.Type {
-	case "mysql":
-		connStr = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
-			conn.User, conn.Password, conn.Server, conn.Port, conn.Database)
-		fmt.Println("MySQL Connection String:", connStr)
-
-	case "postgres":
-		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			conn.Server, conn.Port, conn.User, conn.Password, conn.Database)
-	case "mssql":
-		connStr = fmt.Sprintf("server=%s;port=%s;user id=%s;password=%s;database=%s;",
-			conn.Server, conn.Port, conn.User, conn.Password, conn.Database)
-	default:
-		log.Fatalf("unknown connection type: %s", conn.Type)
+func ExecuteRule(server config.DbServer, rule config.Rule) error {
+	fmt.Printf("\nExecuting Rule [%s] on DB Server [%s]\n", rule.Name, server.Name)
+	connStr, err := server.GetConnString()
+	if err != nil {
+		return fmt.Errorf("failed to get connection string for server %s: %w", server.Name, err)
 	}
 
-	// Connect to database
-	db, err := sql.Open(conn.Type, connStr)
+	db, err := sql.Open(server.Type, connStr)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to open db connection: %w", err)
 	}
 	defer db.Close()
 
 	// Check if the connection is successful
 	err = db.Ping()
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	// Execute a simple SQL query
 	var result string
-	err = db.QueryRow(query).Scan(&result)
+	err = db.QueryRow(rule.Query).Scan(&result)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to execute query: %w", err)
 	}
 	fmt.Println(result)
+	return nil
 }

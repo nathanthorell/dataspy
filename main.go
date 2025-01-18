@@ -2,41 +2,52 @@ package main
 
 import (
 	_ "embed"
-	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
 
+	"github.com/joho/godotenv"
 	"github.com/nathanthorell/dataspy/config"
-	"github.com/nathanthorell/dataspy/db"
-	"github.com/nathanthorell/dataspy/rules"
+	"github.com/nathanthorell/dataspy/runner"
 )
 
-//go:embed config/config.json
-var configJSON []byte
-
-//go:embed config/rules.toml
-var rulesTOML []byte
+//go:embed config/config.toml
+var configTOML []byte
 
 func main() {
-	servers, err := config.LoadConfigBytes(configJSON)
-	if err != nil {
-		log.Fatal(err)
+	// Check if a file path argument is provided
+	var envFile string
+	if len(os.Args) > 1 {
+		envFile = os.Args[1]
 	}
 
-	rules_conf, err := config.LoadRulesBytes(rulesTOML)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	serverRulesMap := rules.MapServerRules(servers, rules_conf)
-
-	// Execute Querys
-	for _, serverRules := range serverRulesMap {
-		for _, rule := range serverRules.Rules {
-			fmt.Println("---------------------------------------")
-			fmt.Println("Running Rule: ", rule.Name)
-			db.ExecuteQuery(serverRules.Server, rule.Query)
-			fmt.Println("---------------------------------------")
-			fmt.Printf("\n")
+	if envFile == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			log.Fatal(err)
 		}
+		envFile = filepath.Join(cwd, ".env")
 	}
+
+	if err := godotenv.Load(envFile); err != nil {
+		log.Fatalf("Error loading environment variables from %s: %v", envFile, err)
+	}
+
+	// Load configuration
+	config, err := config.LoadConfigBytes(configTOML)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sched := runner.NewScheduler(config)
+	if err := sched.Start(); err != nil {
+		log.Fatal(err)
+	}
+
+	// Keep the program running until terminated
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 }

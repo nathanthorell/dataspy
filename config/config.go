@@ -1,30 +1,58 @@
 package config
 
 import (
-	"encoding/json"
 	"fmt"
-
-	"github.com/nathanthorell/dataspy/db"
-	"github.com/nathanthorell/dataspy/rules"
 	"github.com/pelletier/go-toml/v2"
+	"os"
 )
 
-func LoadConfigBytes(data []byte) ([]db.Connection, error) {
-	var payload struct {
-		Servers []db.Connection `json:"servers"`
-	}
-	if err := json.Unmarshal(data, &payload); err != nil {
-		return nil, fmt.Errorf("error during Config Unmarshal(): %w", err)
-	}
-	return payload.Servers, nil
+type Config struct {
+	DBServers []DbServer `toml:"db_servers"`
+	Rules     []Rule     `toml:"rules"`
+	Schedules []Schedule `toml:"scheduler"`
 }
 
-func LoadRulesBytes(data []byte) ([]rules.Rule, error) {
+type DbServer struct {
+	Name          string `toml:"Name"`
+	Type          string `toml:"Type"`
+	ConnStringVar string `toml:"ConnStringVar"`
+}
+
+type Schedule struct {
+	Server  string `toml:"Server"`
+	Rule    string `toml:"Rule"`
+	CronStr string `toml:"CronStr"`
+}
+
+type Rule struct {
+	Name        string `toml:"Name"`
+	Description string `toml:"Description"`
+	DbType      string `toml:"DbType"`
+	Query       string `toml:"Query"`
+}
+
+func LoadConfigBytes(data []byte) (Config, error) {
 	var payload struct {
-		Rules []rules.Rule `toml:"rules"`
+		DBServers []DbServer `toml:"db_servers"`
+		Rules     []Rule     `toml:"rules"`
+		Schedules []Schedule `toml:"schedules"`
 	}
 	if err := toml.Unmarshal(data, &payload); err != nil {
-		return nil, fmt.Errorf("error during Rules Unmarshal(): %w", err)
+		return Config{}, fmt.Errorf("error during Config Unmarshal(): %w", err)
 	}
-	return payload.Rules, nil
+
+	config := Config{
+		DBServers: payload.DBServers,
+		Rules:     payload.Rules,
+		Schedules: payload.Schedules,
+	}
+	return config, nil
+}
+
+func (server DbServer) GetConnString() (string, error) {
+	connStr := os.Getenv(server.ConnStringVar)
+	if connStr == "" {
+		return "", fmt.Errorf("environment variable %s not found or empty", server.ConnStringVar)
+	}
+	return connStr, nil
 }
