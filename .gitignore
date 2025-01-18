@@ -9,6 +9,7 @@
 go.work
 /build/
 /pkg/
+/bin/
 
 # Test binary, built with `go test -c`
 *.test
@@ -18,3 +19,11 @@ go.work
 
 # IDE
 .vscode
+
+# Local environment variable files
+.env
+.envfile
+envfile
+
+# Misc
+.DS_Store
