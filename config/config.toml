@@ -46,3 +46,8 @@ CronStr = "20,40,59 * * * * *"
 Server = "Local Postgres"
 Rule = "Get Postgres Version"
 CronStr = "10,30,50 * * * * *"
+
+[[schedules]]
+Server = "Local MySQL"
+Rule = "Get mySql Version"
+CronStr = "15,35,54 * * * * *"

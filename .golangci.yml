@@ -1,0 +1,26 @@
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - gosimple
+    - unused
+
+run:
+  timeout: 5m
+
+issues:
+  exclude:
+    - ".*\\.toml$"
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+
+output:
+  sort-results: true
+  print-issued-lines: true
+  print-linter-name: true
