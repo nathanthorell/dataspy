@@ -11,6 +11,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/nathanthorell/dataspy/config"
 	"github.com/nathanthorell/dataspy/runner"
+	"github.com/nathanthorell/dataspy/storage"
 )
 
 //go:embed config/config.toml
@@ -41,7 +42,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	sched := runner.NewScheduler(config)
+	// bbolt storage
+	store, err := storage.NewStore("data/dataspy.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer store.Close()
+
+	sched := runner.NewScheduler(config, store)
 	if err := sched.Start(); err != nil {
 		log.Fatal(err)
 	}
