@@ -11,19 +11,26 @@ import (
 	"github.com/nathanthorell/dataspy/config"
 )
 
+// dbOpener is a function type that matches sql.Open's signature
+type dbOpener func(driverName, dataSource string) (*sql.DB, error)
+
 type ExecutionResult struct {
 	RowCount int64
 	Results  string
 }
 
-func ExecuteRule(server config.DbServer, rule config.Rule) (ExecutionResult, error) {
+func executeRuleWithOpener(
+	server config.DbServer,
+	rule config.Rule,
+	opener dbOpener,
+) (ExecutionResult, error) {
 	fmt.Printf("\nExecuting Rule [%s] on DB Server [%s]\n", rule.Name, server.Name)
 	connStr, err := server.GetConnString()
 	if err != nil {
 		return ExecutionResult{}, fmt.Errorf("failed to get connection string for server %s: %w", server.Name, err)
 	}
 
-	db, err := sql.Open(server.Type, connStr)
+	db, err := opener(server.Type, connStr)
 	if err != nil {
 		return ExecutionResult{}, fmt.Errorf("failed to open db connection: %w", err)
 	}
@@ -74,12 +81,10 @@ func ExecuteRule(server config.DbServer, rule config.Rule) (ExecutionResult, err
 		results = append(results, rowStrings)
 	}
 
-	// Format results into a string
 	var resultString string
 	if len(results) > 0 {
 		resultString = fmt.Sprintf("Found %d rows:\n", len(results))
 		for i, row := range results {
-			// Use strings.Join for cleaner output
 			resultString += fmt.Sprintf("Row %d: %s\n", i+1, strings.Join(row, " "))
 		}
 	} else {
@@ -90,4 +95,8 @@ func ExecuteRule(server config.DbServer, rule config.Rule) (ExecutionResult, err
 		RowCount: int64(len(results)),
 		Results:  resultString,
 	}, nil
+}
+
+func ExecuteRule(server config.DbServer, rule config.Rule) (ExecutionResult, error) {
+	return executeRuleWithOpener(server, rule, sql.Open)
 }
