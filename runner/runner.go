@@ -2,11 +2,11 @@ package runner
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/nathanthorell/dataspy/config"
 	"github.com/nathanthorell/dataspy/db"
+	"github.com/nathanthorell/dataspy/logger"
 	"github.com/nathanthorell/dataspy/storage"
 	"github.com/robfig/cron/v3"
 )
@@ -27,35 +27,35 @@ func NewScheduler(config config.Config, store *storage.Store) *Scheduler {
 
 func (s *Scheduler) Start() error {
 	for _, schedule := range s.config.Schedules {
-		fmt.Printf("Adding task [%s] on schedule [%s] for DB Server [%s]\n", schedule.Rule, schedule.CronStr, schedule.Server)
+		logger.Info(fmt.Sprintf("Adding task [%s] on schedule [%s] for DB Server [%s]", schedule.Rule, schedule.CronStr, schedule.Server))
 		err := s.addTask(schedule)
 		if err != nil {
 			return fmt.Errorf("error adding task: %v", err)
 		}
 	}
 
-	fmt.Println("\nStarting Scheduler...")
+	logger.Info("Starting Scheduler...")
 	s.scheduler.Start()
 
 	// Add some debug info
 	entries := s.scheduler.Entries()
-	fmt.Printf("Number of scheduled tasks: %d\n", len(entries))
+	logger.Info(fmt.Sprintf("Number of scheduled tasks: %d", len(entries)))
 	for _, entry := range entries {
-		fmt.Printf("Next run for task: %s\n", entry.Next)
+		logger.Info(fmt.Sprintf("Next run for task: %s", entry.Next))
 	}
 	return nil
 }
 
 func (s *Scheduler) addTask(schedule config.Schedule) error {
-	fmt.Println("Adding task: ", schedule.Rule)
+	logger.Task(schedule.Rule, "Adding scheduled task")
 	entryID, err := s.scheduler.AddFunc(schedule.CronStr, func() {
-		fmt.Printf("\nTriggering scheduled task at %s\n", time.Now().Format(time.RFC3339))
+		logger.Info(fmt.Sprintf("Triggering scheduled task at %s\n", time.Now().Format(time.RFC3339)))
 		s.runTask(schedule.Rule)
 	})
 	if err != nil {
 		return fmt.Errorf("error scheduling task: %w", err)
 	}
-	fmt.Printf("Successfully scheduled task with ID: %d\n\n", entryID)
+	logger.Success(fmt.Sprintf("Successfully scheduled task with ID: %d\n", entryID))
 	return nil
 }
 
@@ -65,26 +65,72 @@ func (s *Scheduler) runTask(scheduleName string) {
 	rule, err := s.findRule(scheduleName)
 	if err != nil {
 		s.recordExecution(config.Rule{Name: scheduleName}, config.DbServer{}, startTime, db.ExecutionResult{}, err)
-		log.Printf("error finding rule: %v", err)
+		logger.Error(err, "error finding rule")
 		return
 	}
 
 	server, err := s.findServer(rule.DbType)
 	if err != nil {
 		s.recordExecution(rule, config.DbServer{}, startTime, db.ExecutionResult{}, err)
-		log.Printf("error finding server: %v", err)
+		logger.Error(err, "error finding server")
 		return
 	}
 
 	result, err := db.ExecuteRule(server, rule)
+	s.processLogEvents(result.LogEvents)
 	s.recordExecution(rule, server, startTime, result, err)
 
 	if err != nil {
-		log.Printf("error executing rule %s: %v", rule.Name, err)
+		logger.Error(err, fmt.Sprintf("error executing rule %s", rule.Name))
 		return
 	}
 
-	fmt.Printf("Results for %s:\n%s\n", rule.Name, result.Results)
+	logger.Result(rule.Name, result.Results)
+}
+
+func (s *Scheduler) processLogEvents(events []db.LogEvent) {
+	for _, event := range events {
+		switch event.Level {
+		case "info":
+			args := convertFieldsToArgs(event.Fields)
+			logger.Info(event.Message, args...)
+		case "error":
+			logger.Error(event.Error, event.Message, convertFieldsToArgs(event.Fields)...)
+		case "success":
+			args := convertFieldsToArgs(event.Fields)
+			logger.Success(event.Message, args...)
+		case "warn":
+			args := convertFieldsToArgs(event.Fields)
+			logger.Warn(event.Message, args...)
+		case "task":
+			if name, ok := event.Fields["rule"].(string); ok {
+				logger.Task(name, event.Message)
+			} else {
+				logger.Task("Task", event.Message)
+			}
+		case "rule":
+			if name, ok := event.Fields["rule"].(string); ok {
+				logger.Rule(name, event.Message)
+			} else {
+				logger.Rule("Rule", event.Message)
+			}
+		case "db":
+			if name, ok := event.Fields["server"].(string); ok {
+				logger.DB(name, event.Message)
+			} else {
+				logger.DB("DB", event.Message)
+			}
+		}
+	}
+}
+
+// Helper function for above processLogEvents
+func convertFieldsToArgs(fields map[string]interface{}) []interface{} {
+	args := make([]interface{}, 0, len(fields)*2)
+	for k, v := range fields {
+		args = append(args, k, v)
+	}
+	return args
 }
 
 func (s *Scheduler) findRule(name string) (config.Rule, error) {
@@ -134,6 +180,6 @@ func (s *Scheduler) recordExecution(
 	}
 
 	if err := s.store.SaveExecutionRecord(record); err != nil {
-		log.Printf("failed to save execution record: %v", err)
+		logger.Error(err, "failed to save execution record")
 	}
 }

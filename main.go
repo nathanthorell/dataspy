@@ -8,6 +8,10 @@ import (
 	"path/filepath"
 	"syscall"
 
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
+	_ "github.com/microsoft/go-mssqldb"
+
 	"github.com/joho/godotenv"
 	"github.com/nathanthorell/dataspy/config"
 	"github.com/nathanthorell/dataspy/runner"
