@@ -1,0 +1,64 @@
+# Database Servers Configuration
+# Define your database connections here
+# The ConnStringVar should match environment variables in your .env file
+
+[[db_servers]]
+Name = "Local Postgres"
+Type = "postgres"
+ConnStringVar = "PG_DBCONN"
+
+[[db_servers]]
+Name = "Local MSSQL"
+Type = "sqlserver"
+ConnStringVar = "MSSQL_DBCONN"
+
+[[db_servers]]
+Name = "Local MySQL"
+Type = "mysql"
+ConnStringVar = "MySQL_DBCONN"
+
+# Rules Configuration
+# Define SQL queries to check for business rule violations
+
+[[rules]]
+Name = "Get Postgres Version"
+Description = "Test Postgres connection"
+DbType = "postgres"
+Query = """
+SELECT version();
+"""
+
+[[rules]]
+Name = "Get MySQL Version"
+Description = "Test MySQL connection"
+DbType = "mysql"
+Query = """
+SELECT version();
+"""
+
+[[rules]]
+Name = "Get SQL Server Version"
+Description = "Test SQL Server connection"
+DbType = "sqlserver"
+Query = """
+SELECT @@version;
+"""
+
+# Schedules Configuration
+# Define when rules should run (cron format with seconds)
+# Format: seconds minute hour day-of-month month day-of-week
+
+[[schedules]]
+Server = "Local Postgres"
+Rule = "Get Postgres Version"
+CronStr = "0 */5 * * * *"  # Every 5 minutes
+
+[[schedules]]
+Server = "Local MySQL"
+Rule = "Get MySQL Version"
+CronStr = "0 */5 * * * *"  # Every 5 minutes
+
+[[schedules]]
+Server = "Local MSSQL"
+Rule = "Get SQL Server Version"
+CronStr = "0 */5 * * * *"  # Every 5 minutes

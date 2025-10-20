@@ -60,20 +60,27 @@ func (s *Scheduler) addTask(schedule config.Schedule) error {
 }
 
 func (s *Scheduler) runTask(scheduleName string) {
+	if err := s.ExecuteRuleByName(scheduleName); err != nil {
+		logger.Error(err, fmt.Sprintf("error executing scheduled task %s", scheduleName))
+	}
+}
+
+// ExecuteRuleByName executes a rule by name and records the result
+func (s *Scheduler) ExecuteRuleByName(ruleName string) error {
 	startTime := time.Now()
 
-	rule, err := s.findRule(scheduleName)
+	rule, err := s.findRule(ruleName)
 	if err != nil {
-		s.recordExecution(config.Rule{Name: scheduleName}, config.DbServer{}, startTime, db.ExecutionResult{}, err)
+		s.recordExecution(config.Rule{Name: ruleName}, config.DbServer{}, startTime, db.ExecutionResult{}, err)
 		logger.Error(err, "error finding rule")
-		return
+		return err
 	}
 
 	server, err := s.findServer(rule.DbType)
 	if err != nil {
 		s.recordExecution(rule, config.DbServer{}, startTime, db.ExecutionResult{}, err)
 		logger.Error(err, "error finding server")
-		return
+		return err
 	}
 
 	result, err := db.ExecuteRule(server, rule)
@@ -82,10 +89,28 @@ func (s *Scheduler) runTask(scheduleName string) {
 
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("error executing rule %s", rule.Name))
-		return
+		return err
 	}
 
 	logger.Result(rule.Name, result.Results)
+	return nil
+}
+
+// ExecuteAllRules executes all configured rules
+func (s *Scheduler) ExecuteAllRules() (successCount int, errorCount int) {
+	logger.Info(fmt.Sprintf("Running all %d rules", len(s.config.Rules)))
+
+	for _, rule := range s.config.Rules {
+		if err := s.ExecuteRuleByName(rule.Name); err != nil {
+			errorCount++
+		} else {
+			successCount++
+		}
+		fmt.Println() // Add spacing between rule executions
+	}
+
+	logger.Info(fmt.Sprintf("Completed: %d successful, %d errors", successCount, errorCount))
+	return successCount, errorCount
 }
 
 func (s *Scheduler) processLogEvents(events []db.LogEvent) {
